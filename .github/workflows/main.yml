@@ -1,0 +1,122 @@
+name: Helm Release Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  helm-release:
+    runs-on: ubuntu-latest
+    steps:
+      # ----------------------------------------
+      # 1. Persiapan Environment
+      # ----------------------------------------
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          path: 'src'
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.11.0'
+
+      # ----------------------------------------
+      # 2. Validasi Struktur Chart
+      # ----------------------------------------
+      - name: Verify Chart Structure
+        id: chart-validation
+        run: |
+          echo "=== DEBUG: Directory Structure ==="
+          ls -R src
+          
+          echo "=== Validating Chart.yaml ==="
+          if [ ! -f "src/Chart.yaml" ]; then
+            echo "::error::Chart.yaml missing in root directory!"
+            exit 1
+          else
+            echo "Chart.yaml content:"
+            cat src/Chart.yaml
+          fi
+
+          echo "=== Checking Templates ==="
+          if [ ! -d "src/templates" ]; then
+            echo "::warning::Creating minimal templates directory..."
+            mkdir -p src/templates
+          fi
+
+      # ----------------------------------------
+      # 3. Penyiapan Template (Fallback)
+      # ----------------------------------------
+      - name: Ensure Minimum Templates
+        if: steps.chart-validation.outcome == 'success'
+        run: |
+          if [ ! -f "src/templates/deployment.yaml" ]; then
+            echo "Creating minimal deployment template..."
+            cat > src/templates/deployment.yaml <<EOF
+            apiVersion: apps/v1
+            kind: Deployment
+            metadata:
+              name: {{ .Chart.Name }}
+            spec:
+              replicas: 1
+              selector:
+                matchLabels:
+                  app: {{ .Chart.Name }}
+              template:
+                metadata:
+                  labels:
+                    app: {{ .Chart.Name }}
+                spec:
+                  containers:
+                  - name: {{ .Chart.Name }}
+                    image: nginx
+                    ports:
+                    - containerPort: 80
+            EOF
+          fi
+
+          echo "Final templates:"
+          ls -la src/templates/
+
+      # ----------------------------------------
+      # 4. Proses Helm
+      # ----------------------------------------
+      - name: Lint Helm Chart
+        run: |
+          cd src
+          helm lint . --strict
+
+      - name: Package Helm Chart
+        run: |
+          cd src
+          mkdir -p ../packaged-chart
+          helm package . -d ../packaged-chart --version 0.1.0
+
+      # ----------------------------------------
+      # 5. Persiapan Release
+      # ----------------------------------------
+      - name: Prepare Release Artifacts
+        run: |
+          mkdir -p release-artifacts
+          mv packaged-chart/*.tgz release-artifacts/
+          
+          echo "Generating index.yaml..."
+          helm repo index release-artifacts --url https://github.com/umarfd/express-postgres-chart/releases/download/v0.1.0/
+
+          echo "Final artifacts:"
+          ls -la release-artifacts/
+
+      # ----------------------------------------
+      # 6. Upload Artifacts
+      # ----------------------------------------
+      - name: Upload Release Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: helm-chart-package
+          path: |
+            release-artifacts/*.tgz
+            release-artifacts/index.yaml
