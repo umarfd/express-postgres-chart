@@ -14,7 +14,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          path: 'src'  # Mengisolasi repo ke subfolder
 
       - name: Setup Helm
         uses: azure/setup-helm@v3
@@ -24,23 +23,21 @@ jobs:
       - name: Debug Structure
         run: |
           echo "=== STRUKTUR DIREKTORI ==="
-          ls -R src
+          ls -R
           echo "=== ISI Chart.yaml ==="
-          cat src/Chart.yaml
+          cat Chart.yaml
           echo "=== VALIDASI ==="
-          [ -f "src/Chart.yaml" ] || (echo "ERROR: Chart.yaml tidak ditemukan" && exit 1)
-          [ -d "src/templates" ] || (echo "WARNING: Folder templates tidak ditemukan")
+          [ -f "Chart.yaml" ] || (echo "ERROR: Chart.yaml tidak ditemukan" && exit 1)
+          [ -d "templates" ] || (echo "WARNING: Folder templates tidak ditemukan")
 
       - name: Run Helm Lint
         run: |
-          cd src
           helm lint . --strict
 
       - name: Package Chart
         run: |
-          cd src
-          mkdir -p ../packaged-chart
-          helm package . -d ../packaged-chart
+          mkdir -p packaged-chart
+          helm package . -d packaged-chart
 
       - name: Create Release
         run: |
