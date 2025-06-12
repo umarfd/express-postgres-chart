@@ -3,12 +3,12 @@ entries:
   express-postgres:
   - apiVersion: v2
     appVersion: 1.16.0
-    created: "2025-06-12T15:32:33.717820037+07:00"
+    created: "2025-06-12T15:59:34.334521092+07:00"
     description: A Helm chart for Kubernetes
-    digest: aa9aa710199c61d596fff786a33452aae264828f3e1a78212cc1f8fbab8c2686
+    digest: dc910e2f8f3c49cdc8b2100c0678e96a3351c6ee6213105e5c0f1473c3988da3
     name: express-postgres
     type: application
     urls:
     - https://umarfd.github.io/express-postgres-chart/express-postgres-0.1.0.tgz
     version: 0.1.0
-generated: "2025-06-12T15:32:33.716451612+07:00"
+generated: "2025-06-12T15:59:34.332866235+07:00"
