@@ -11,40 +11,69 @@ spec:
       {{- include "express-postgres.selectorLabels" . | nindent 6 }}
   template:
     metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       labels:
         {{- include "express-postgres.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      serviceAccountName: {{ include "express-postgres.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: 3000
+              containerPort: {{ .Values.service.port }}
               protocol: TCP
           env:
             - name: DB_HOST
-              value: "{{ include "express-postgres.fullname" . }}-postgresql"
+              value: {{ include "express-postgres.fullname" . }}-postgresql
             - name: DB_PORT
-              value: "5432"
+              value: "{{ .Values.postgresql.service.port }}"
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
                   name: {{ include "express-postgres.fullname" . }}-postgresql
-                  key: postgres-password
+                  key: username
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ include "express-postgres.fullname" . }}-postgresql
-                  key: postgres-password
+                  key: password
             - name: DB_NAME
-              value: "mydatabase"
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "express-postgres.fullname" . }}-postgresql
+                  key: database
+            - name: NODE_ENV
+              value: {{ .Values.env.NODE_ENV | quote }}
+          {{- with .Values.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            {{- toYaml .Values.volumeMounts | nindent 12 }}
+      volumes:
+        {{- toYaml .Values.volumes | nindent 8 }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
